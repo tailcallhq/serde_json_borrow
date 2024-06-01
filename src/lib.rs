@@ -80,4 +80,4 @@ mod value;
 
 pub use object_vec::{KeyStrType, ObjectAsVec, ObjectAsVec as Map};
 pub use owned::OwnedValue;
-pub use value::Value;
+pub use value::{Value, Number};

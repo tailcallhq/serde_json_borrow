@@ -2,10 +2,55 @@
 use core::fmt;
 use std::borrow::Cow;
 
-use serde::de::{Deserialize, MapAccess, SeqAccess, Visitor};
+use serde::de::{self, Deserialize, MapAccess, SeqAccess, Visitor};
 
 use crate::object_vec::ObjectAsVec;
-use crate::value::Value;
+use crate::value::{N, Value};
+
+
+impl<'de> Deserialize<'de> for N {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+        where
+            D: serde::Deserializer<'de>,
+    {
+        struct NVisitor;
+
+        impl<'de> Visitor<'de> for NVisitor {
+            type Value = N;
+
+            fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+                formatter.write_str("a valid number")
+            }
+
+            fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+            {
+                if value < 0 {
+                    Ok(N::NegInt(value))
+                } else {
+                    Ok(N::PosInt(value as u64))
+                }
+            }
+
+            fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+            {
+                Ok(N::PosInt(value))
+            }
+
+            fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
+                where
+                    E: de::Error,
+            {
+                Ok(N::Float(value))
+            }
+        }
+
+        deserializer.deserialize_any(NVisitor)
+    }
+}
 
 impl<'de> Deserialize<'de> for Value<'de> {
     #[inline]
@@ -42,19 +87,19 @@ impl<'de> Deserialize<'de> for Value<'de> {
 
             #[inline]
             fn visit_string<E>(self, v: String) -> Result<Self::Value, E>
-            where E: serde::de::Error {
+            where E: de::Error {
                 Ok(Value::Str(v.into()))
             }
 
             #[inline]
             fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
-            where E: serde::de::Error {
+            where E: de::Error {
                 Ok(Value::Str(Cow::Owned(v.to_owned())))
             }
 
             #[inline]
             fn visit_borrowed_str<E>(self, v: &'de str) -> Result<Self::Value, E>
-            where E: serde::de::Error {
+            where E: de::Error {
                 Ok(Value::Str(Cow::Borrowed(v)))
             }
 

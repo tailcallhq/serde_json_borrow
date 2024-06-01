@@ -50,6 +50,20 @@ impl OwnedValue {
     pub fn get_value(&self) -> &Value<'_> {
         &self.value
     }
+
+    /// temp
+    pub fn into_value(self) -> Value<'static> {
+        self.value
+    }
+}
+
+impl From<Value<'_>> for OwnedValue {
+    fn from(value: Value<'_>) -> Self {
+        Self {
+            _data: value.to_string(),
+            value: unsafe { extend_lifetime(value) },
+        }
+    }
 }
 
 impl Deref for OwnedValue {

@@ -31,6 +31,12 @@ impl<'ctx> From<Vec<(&'ctx str, Value<'ctx>)>> for ObjectAsVec<'ctx> {
     }
 }
 
+impl<'ctx> From<Vec<(String, Value<'ctx>)>> for ObjectAsVec<'ctx> {
+    fn from(vec: Vec<(String, Value<'ctx>)>) -> Self {
+        Self(vec.into_iter().map(|(k, v)| (k.into(), v)).collect())
+    }
+}
+
 impl<'ctx> ObjectAsVec<'ctx> {
     /// Access to the underlying Vec.
     ///

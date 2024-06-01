@@ -2,6 +2,8 @@ use core::fmt;
 use core::hash::{Hash, Hasher};
 use std::borrow::Cow;
 use std::fmt::{Debug, Display};
+use std::str::FromStr;
+use schemars::schema::{InstanceType, Schema, SchemaObject};
 
 use crate::index::Index;
 pub use crate::object_vec::ObjectAsVec;
@@ -315,6 +317,26 @@ pub(crate) enum N {
     Float(f64),
 }
 
+
+impl FromStr for Number {
+    type Err = std::num::ParseFloatError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        if let Ok(int) = s.parse::<i64>() {
+            if int < 0 {
+                Ok(Number { n: N::NegInt(int) })
+            } else {
+                Ok(Number { n: N::PosInt(int as u64) })
+            }
+        } else if let Ok(float) = s.parse::<f64>() {
+            Ok(Number { n: N::Float(float) })
+        } else {
+            Err(s.parse::<f64>().unwrap_err())
+        }
+    }
+}
+
+
 impl Number {
     /// If the `Number` is an integer, represent it as i64 if possible. Returns
     /// None otherwise.
@@ -444,6 +466,46 @@ impl From<Number> for serde_json::value::Number {
             N::NegInt(n) => n.into(),
             N::Float(n) => serde_json::value::Number::from_f64(n).unwrap(),
         }
+    }
+}
+
+impl From<serde_json::Value> for Value<'_> {
+    fn from(value: serde_json::Value) -> Self {
+        match value {
+            serde_json::Value::Null => Value::Null,
+            serde_json::Value::Bool(b) => Value::Bool(b),
+            serde_json::Value::Number(n) => {
+                if let Some(n) = n.as_u64() {
+                    Value::Number(n.into())
+                } else if let Some(n) = n.as_i64() {
+                    Value::Number(n.into())
+                } else {
+                    Value::Number(n.as_f64().unwrap().into())
+                }
+            }
+            serde_json::Value::String(s) => Value::Str(Cow::Owned(s)),
+            serde_json::Value::Array(a) => Value::Array(a.into_iter().map(Into::into).collect()),
+            serde_json::Value::Object(o) => {
+                Value::Object(o.into_iter().map(|(k, v)| (k, Self::from(v))).collect::<Vec<_>>().into())
+            }
+        }
+    }
+}
+
+impl schemars::JsonSchema for Value<'_> {
+    fn is_referenceable() -> bool {
+        true
+    }
+
+    fn schema_name() -> String {
+        "Value".to_string()
+    }
+
+    fn json_schema(_: &mut schemars::gen::SchemaGenerator) -> Schema {
+        Schema::Object(SchemaObject {
+            instance_type: Some(InstanceType::Object.into()),
+            ..Default::default()
+        })
     }
 }
 
