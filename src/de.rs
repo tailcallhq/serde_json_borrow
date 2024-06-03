@@ -3,15 +3,17 @@ use core::fmt;
 use std::borrow::Cow;
 
 use serde::de::{self, Deserialize, MapAccess, SeqAccess, Visitor};
+use serde::Deserializer;
 
 use crate::object_vec::ObjectAsVec;
+use crate::OwnedValue;
 use crate::value::{N, Value};
 
 
 impl<'de> Deserialize<'de> for N {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
         where
-            D: serde::Deserializer<'de>,
+            D: Deserializer<'de>,
     {
         struct NVisitor;
 
@@ -52,10 +54,17 @@ impl<'de> Deserialize<'de> for N {
     }
 }
 
+impl<'de> Deserialize<'de> for OwnedValue {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+        let value = Value::deserialize(deserializer)?;
+        Ok(value.into())
+    }
+}
+
 impl<'de> Deserialize<'de> for Value<'de> {
     #[inline]
     fn deserialize<D>(deserializer: D) -> Result<Value<'de>, D::Error>
-    where D: serde::Deserializer<'de> {
+    where D: Deserializer<'de> {
         struct ValueVisitor;
 
         impl<'de> Visitor<'de> for ValueVisitor {
@@ -145,7 +154,7 @@ impl<'de> Deserialize<'de> for Value<'de> {
 
             #[inline]
             fn visit_some<D>(self, deserializer: D) -> Result<Value<'de>, D::Error>
-            where D: serde::Deserializer<'de> {
+            where D: Deserializer<'de> {
                 Deserialize::deserialize(deserializer)
             }
 
