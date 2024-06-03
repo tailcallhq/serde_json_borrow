@@ -3,10 +3,13 @@ use core::hash::{Hash, Hasher};
 use std::borrow::Cow;
 use std::fmt::{Debug, Display};
 use std::str::FromStr;
+
+use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 
 use crate::index::Index;
 pub use crate::object_vec::ObjectAsVec;
+use crate::OwnedValue;
 
 /// Represents any valid JSON value.
 ///
@@ -317,7 +320,6 @@ pub(crate) enum N {
     Float(f64),
 }
 
-
 impl FromStr for Number {
     type Err = std::num::ParseFloatError;
 
@@ -326,7 +328,9 @@ impl FromStr for Number {
             if int < 0 {
                 Ok(Number { n: N::NegInt(int) })
             } else {
-                Ok(Number { n: N::PosInt(int as u64) })
+                Ok(Number {
+                    n: N::PosInt(int as u64),
+                })
             }
         } else if let Ok(float) = s.parse::<f64>() {
             Ok(Number { n: N::Float(float) })
@@ -335,7 +339,6 @@ impl FromStr for Number {
         }
     }
 }
-
 
 impl Number {
     /// If the `Number` is an integer, represent it as i64 if possible. Returns
@@ -485,10 +488,26 @@ impl From<serde_json::Value> for Value<'_> {
             }
             serde_json::Value::String(s) => Value::Str(Cow::Owned(s)),
             serde_json::Value::Array(a) => Value::Array(a.into_iter().map(Into::into).collect()),
-            serde_json::Value::Object(o) => {
-                Value::Object(o.into_iter().map(|(k, v)| (k, Self::from(v))).collect::<Vec<_>>().into())
-            }
+            serde_json::Value::Object(o) => Value::Object(
+                o.into_iter()
+                    .map(|(k, v)| (k, Self::from(v)))
+                    .collect::<Vec<_>>()
+                    .into(),
+            ),
         }
+    }
+}
+
+impl schemars::JsonSchema for OwnedValue {
+    fn is_referenceable() -> bool {
+        true
+    }
+
+    fn schema_name() -> String {
+        "OwnedValue".to_string()
+    }
+    fn json_schema(gen: &mut SchemaGenerator) -> Schema {
+        <Value>::json_schema(gen)
     }
 }
 
@@ -501,7 +520,7 @@ impl schemars::JsonSchema for Value<'_> {
         "Value".to_string()
     }
 
-    fn json_schema(_: &mut schemars::gen::SchemaGenerator) -> Schema {
+    fn json_schema(_: &mut SchemaGenerator) -> Schema {
         Schema::Object(SchemaObject {
             instance_type: Some(InstanceType::Object.into()),
             ..Default::default()

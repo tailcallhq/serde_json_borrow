@@ -6,15 +6,12 @@ use serde::de::{self, Deserialize, MapAccess, SeqAccess, Visitor};
 use serde::Deserializer;
 
 use crate::object_vec::ObjectAsVec;
+use crate::value::{Value, N};
 use crate::OwnedValue;
-use crate::value::{N, Value};
-
 
 impl<'de> Deserialize<'de> for N {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-        where
-            D: Deserializer<'de>,
-    {
+    where D: Deserializer<'de> {
         struct NVisitor;
 
         impl<'de> Visitor<'de> for NVisitor {
@@ -25,9 +22,7 @@ impl<'de> Deserialize<'de> for N {
             }
 
             fn visit_i64<E>(self, value: i64) -> Result<Self::Value, E>
-                where
-                    E: de::Error,
-            {
+            where E: de::Error {
                 if value < 0 {
                     Ok(N::NegInt(value))
                 } else {
@@ -36,16 +31,12 @@ impl<'de> Deserialize<'de> for N {
             }
 
             fn visit_u64<E>(self, value: u64) -> Result<Self::Value, E>
-                where
-                    E: de::Error,
-            {
+            where E: de::Error {
                 Ok(N::PosInt(value))
             }
 
             fn visit_f64<E>(self, value: f64) -> Result<Self::Value, E>
-                where
-                    E: de::Error,
-            {
+            where E: de::Error {
                 Ok(N::Float(value))
             }
         }
@@ -55,7 +46,8 @@ impl<'de> Deserialize<'de> for N {
 }
 
 impl<'de> Deserialize<'de> for OwnedValue {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error> where D: Deserializer<'de> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where D: Deserializer<'de> {
         let value = Value::deserialize(deserializer)?;
         Ok(value.into())
     }
